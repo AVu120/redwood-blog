@@ -1,28 +1,55 @@
-import { MetaTags } from '@redwoodjs/web'
+import { MetaTags, useMutation } from '@redwoodjs/web'
 import {
   FieldError,
   Form,
+  FormError,
   Label,
   Submit,
   SubmitHandler,
   TextAreaField,
   TextField,
+  useForm,
 } from '@redwoodjs/forms'
-
+import { CreateContactInput, MutationcreateContactArgs } from 'types/graphql'
+import { toast, Toaster } from '@redwoodjs/web/toast'
 interface FormValues {
   name: string
   email: string
   message: string
 }
 
+const CREATE_CONTACT = gql`
+  mutation CreateContactMutation($input: CreateContactInput!) {
+    createContact(input: $input) {
+      id
+    }
+  }
+`
+
 const ContactPage = () => {
+  const formMethods = useForm({ mode: 'onBlur' })
+  const [create, { loading, error }] = useMutation<
+    CreateContactInput,
+    MutationcreateContactArgs
+  >(CREATE_CONTACT, {
+    onCompleted: () => {
+      toast.success('Thank you for your submission!')
+      formMethods.reset()
+    },
+  })
   const onSubmit: SubmitHandler<FormValues> = (data) => {
-    console.log(data)
+    create({
+      variables: {
+        input: data,
+      },
+    })
   }
   return (
     <>
       <MetaTags title="Contact" description="Contact page" />
-      <Form onSubmit={onSubmit} config={{ mode: 'onBlur' }}>
+      <Toaster />
+      <Form onSubmit={onSubmit} error={error} formMethods={formMethods}>
+        <FormError error={error} wrapperClassName="form-error" />
         <Label name="name" errorClassName="error">
           Name:{' '}
         </Label>
@@ -39,10 +66,6 @@ const ContactPage = () => {
           name="email"
           validation={{
             required: true,
-            pattern: {
-              value: /^[^@]+@[^.]+\..+$/,
-              message: 'Please enter a valid email address',
-            },
           }}
           errorClassName="error"
         />
@@ -56,7 +79,7 @@ const ContactPage = () => {
           errorClassName="error"
         />
         <FieldError name="message" className="error" />
-        <Submit>Save</Submit>
+        <Submit disabled={loading}>Save</Submit>
       </Form>
     </>
   )
